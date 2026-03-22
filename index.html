@@ -484,7 +484,9 @@
     <button class="view-tab"        id="tab-calendar" onclick="gotoView('calendar')">📅 Calendar</button>
   </div>
   <div class="view-tabs" id="admin-tabs" style="display:none">
-    <button class="view-tab active" style="cursor:default">👑 Admin Panel</button>
+    <button class="view-tab active" id="atab-myhabits" onclick="gotoAdminTab('myhabits')">📋 My Habits</button>
+    <button class="view-tab"        id="atab-calendar" onclick="gotoAdminTab('calendar')">📅 Calendar</button>
+    <button class="view-tab"        id="atab-staff"    onclick="gotoAdminTab('staff')">👑 Staff Panel</button>
   </div>
 
   <!-- ── HABITS VIEW ── -->
@@ -513,8 +515,34 @@
     </div>
   </div>
 
-  <!-- ── ADMIN VIEW ── -->
-  <div id="admin-view">
+  <!-- ── ADMIN MY HABITS VIEW ── -->
+  <div id="admin-habits-view" style="display:none">
+    <div class="date-header" id="admin-date-header"></div>
+    <div class="habits-list" id="admin-habits-list">
+      <div class="state-box"><div class="mini-spin"></div><p>Loading your habits…</p></div>
+    </div>
+  </div>
+
+  <!-- ── ADMIN CALENDAR VIEW ── -->
+  <div id="admin-calendar-view" style="display:none; padding:16px">
+    <div class="cal-header">
+      <button class="cal-nav" onclick="adminCalPrev()">‹</button>
+      <span class="cal-title" id="admin-cal-month"></span>
+      <button class="cal-nav" onclick="adminCalNext()">›</button>
+    </div>
+    <select class="cal-select" id="admin-cal-select" onchange="renderAdminCalendar()">
+      <option value="">— Select a habit to view its history —</option>
+    </select>
+    <div class="cal-grid" id="admin-cal-grid"></div>
+    <div class="cal-legend">
+      <div class="leg-item"><div class="leg-dot" style="background:var(--teal)"></div>Done</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#fee2e2;border:1px solid #fca5a5"></div>Missed</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#fff;border:1px solid var(--border)"></div>No habit yet</div>
+    </div>
+  </div>
+
+  <!-- ── ADMIN VIEW (Staff Panel) ── -->
+  <div id="admin-view" style="display:none">
     <div class="admin-hdr">
       <div>
         <div class="admin-title">Admin Panel</div>
@@ -541,7 +569,8 @@
     <div id="admin-content"></div>
   </div>
 
-  <button class="fab" id="fab" onclick="openAddHabit()">+</button>
+  <button class="fab" id="fab"       onclick="openAddHabit()">+</button>
+  <button class="fab" id="admin-fab" onclick="openAddAdminHabit()" style="display:none">+</button>
 </div>
 
 <!-- EXPORT MODAL -->
@@ -693,21 +722,6 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 /* ================================================================
    INIT
 ================================================================ */
-async function boot() {
-  try { if (!firebase.apps.length) firebase.initializeApp(FB); } catch(e) {}
-  auth = firebase.auth();
-  db   = firebase.firestore();
-  try { await db.enablePersistence({ synchronizeTabs: true }); } catch(e) {}
-
-  await ensureAdmin();
-
-  auth.onAuthStateChanged(user => {
-    hideSplash();
-    if (user) { me = user; amAdmin = (user.email === ADMIN_EMAIL); launch(); }
-    else       showAuth();
-  });
-}
-
 function hideSplash() { document.getElementById('splash').style.display = 'none'; }
 
 async function ensureAdmin() {
@@ -752,12 +766,15 @@ async function doLogin() {
 
 async function doLogout() {
   listeners.forEach(u => u());
-  listeners    = [];
-  habitsMap    = {};
-  usersMap     = {};
-  doneMap      = {};
-  habitsLoaded = false;
-  totalUsers   = 0;
+  listeners         = [];
+  habitsMap         = {};
+  usersMap          = {};
+  doneMap           = {};
+  habitsLoaded      = false;
+  adminHabitsLoaded = false;
+  adminCalYear      = null;
+  adminCalMonth     = null;
+  totalUsers        = 0;
   habitsReady.clear();
   compsReady.clear();
   Object.keys(userSubMap).forEach(k => delete userSubMap[k]);
@@ -788,8 +805,12 @@ function launch() {
     document.getElementById('user-tabs').style.display  = 'none';
     document.getElementById('admin-tabs').style.display = '';
     document.getElementById('fab').style.display        = 'none';
-    gotoView('admin');
-    listenAdmin();
+    // Admin gets their own habit listener + the staff listener
+    adminHabitsLoaded = false;
+    listenUser(me.uid);          // reuse same user listener for admin's own habits
+    listenAdmin();               // staff panel
+    buildAdminDateHeader();
+    gotoAdminTab('myhabits');    // start on My Habits tab
   } else {
     document.getElementById('user-tabs').style.display  = '';
     document.getElementById('admin-tabs').style.display = 'none';
@@ -815,6 +836,40 @@ function gotoView(v) {
   if (v === 'calendar') renderCalendar();
 }
 
+/* Admin tabs — My Habits / Calendar / Staff Panel */
+let adminCalYear, adminCalMonth;
+let adminHabitsLoaded = false;
+
+function gotoAdminTab(tab) {
+  // Hide ALL possible views (user + admin)
+  ['habits-view','calendar-view',
+   'admin-habits-view','admin-calendar-view','admin-view'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  document.getElementById('admin-fab').style.display = 'none';
+
+  // Highlight correct tab button
+  ['myhabits','calendar','staff'].forEach(t => {
+    const el = document.getElementById('atab-' + t);
+    if (el) el.classList.toggle('active', t === tab);
+  });
+
+  if (tab === 'myhabits') {
+    document.getElementById('admin-habits-view').style.display = 'block';
+    document.getElementById('admin-fab').style.display         = '';
+    renderAdminHabits();
+  } else if (tab === 'calendar') {
+    document.getElementById('admin-calendar-view').style.display = 'block';
+    const now = new Date();
+    if (!adminCalYear) { adminCalYear = now.getFullYear(); adminCalMonth = now.getMonth(); }
+    renderAdminCalendar();
+  } else if (tab === 'staff') {
+    document.getElementById('admin-view').style.display = 'block';
+    renderAdminView();
+  }
+}
+
 /* ================================================================
    DATE HEADER
 ================================================================ */
@@ -833,6 +888,120 @@ function buildDateHeader() {
 }
 
 /* ================================================================
+   ADMIN MY HABITS — render + date header + calendar
+================================================================ */
+function buildAdminDateHeader() {
+  const days  = getLast4Days();
+  const today = todayStr();
+  let html    = '<div></div>';
+  days.forEach(d => {
+    const ds  = localDateStr(d);
+    const isT = ds === today;
+    html += `<div class="date-col ${isT ? 'today-col' : ''}">
+      ${DAYS[d.getDay()]}<span class="day-num">${d.getDate()}</span>
+    </div>`;
+  });
+  document.getElementById('admin-date-header').innerHTML = html;
+}
+
+function renderAdminHabits() {
+  const uid    = me.uid;
+  const habits = habitsMap[uid] || [];
+  const el     = document.getElementById('admin-habits-list');
+
+  if (!habitsLoaded) {
+    el.innerHTML = '<div class="state-box"><div class="mini-spin"></div><p>Loading…</p></div>';
+    return;
+  }
+  if (!habits.length) {
+    el.innerHTML = `<div class="state-box">
+      <div class="icon">🌱</div>
+      <h3>No habits yet</h3>
+      <p>Tap <strong>+</strong> below to add your first habit!</p>
+    </div>`;
+    return;
+  }
+
+  const days  = getLast4Days();
+  const today = todayStr();
+  const done  = doneMap[uid] || {};
+  let html    = '';
+
+  habits.forEach(h => {
+    let cells = '';
+    days.forEach(d => {
+      const ds       = localDateStr(d);
+      const key      = `${h.id}_${ds}`;
+      const isDone   = done[key] === true;
+      const isFuture = ds > today;
+      const cls      = isFuture ? 'is-future' : (isDone ? 'is-done' : '');
+      cells += `<div class="check-cell">
+        <button class="check-btn ${cls}"
+          ${!isFuture ? `onclick="toggle('${h.id}','${ds}',${isDone})"` : ''}
+          title="${ds}">${isDone ? '✓' : '✕'}</button>
+      </div>`;
+    });
+    const safeName  = h.name.replace(/'/g,"&#39;").replace(/"/g,"&quot;");
+    const safeEmoji = (h.emoji||'⭐').replace(/'/g,"&#39;");
+    html += `<div class="habit-row">
+      <div class="habit-info">
+        <div class="habit-emoji">${h.emoji || '⭐'}</div>
+        <span class="habit-name">${esc(h.name)}</span>
+        <div class="habit-actions">
+          <button class="hab-btn hab-btn-edit" title="Edit"
+            onclick="openEditHabit('${h.id}','${safeName}','${safeEmoji}')">✎</button>
+          <button class="hab-btn hab-btn-del"  title="Delete"
+            onclick="openDeleteHabit('${h.id}','${safeName}')">🗑</button>
+        </div>
+      </div>
+      ${cells}
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+function refreshAdminCalSelect() {
+  const uid    = me.uid;
+  const habits = habitsMap[uid] || [];
+  const sel    = document.getElementById('admin-cal-select');
+  const cur    = sel.value;
+  sel.innerHTML = '<option value="">— Select a habit to view its history —</option>' +
+    habits.map(h => `<option value="${h.id}">${h.emoji||'⭐'} ${esc(h.name)}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+
+function renderAdminCalendar() {
+  const uid     = me.uid;
+  const habitId = document.getElementById('admin-cal-select').value;
+  const today   = todayStr();
+  const comps   = doneMap[uid] || {};
+  const now     = new Date();
+  if (!adminCalYear)  { adminCalYear  = now.getFullYear(); adminCalMonth = now.getMonth(); }
+
+  document.getElementById('admin-cal-month').textContent = `${MONTHS[adminCalMonth]} ${adminCalYear}`;
+
+  const firstDow    = new Date(adminCalYear, adminCalMonth, 1).getDay();
+  const daysInMonth = new Date(adminCalYear, adminCalMonth + 1, 0).getDate();
+  let html = DAYS.map(d => `<div class="cal-lbl">${d[0]}</div>`).join('');
+  for (let i = 0; i < firstDow; i++) html += '<div class="cal-cell blank"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds       = `${adminCalYear}-${String(adminCalMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isFuture = ds > today;
+    let   cls      = '';
+    if (habitId && !isFuture) cls = comps[`${habitId}_${ds}`] === true ? 'c-done' : 'c-miss';
+    if (ds === today) cls += ' c-today';
+    if (isFuture)     cls += ' c-future';
+    html += `<div class="cal-cell ${cls.trim()}">${d}</div>`;
+  }
+  document.getElementById('admin-cal-grid').innerHTML = html;
+}
+
+function adminCalPrev() { if (--adminCalMonth < 0)  { adminCalMonth=11; adminCalYear--; } renderAdminCalendar(); }
+function adminCalNext() { if (++adminCalMonth > 11) { adminCalMonth=0;  adminCalYear++; } renderAdminCalendar(); }
+
+function openAddAdminHabit() { openAddHabit(); } // reuse same modal
+
+/* ================================================================
    USER — listen to habits + completions
 ================================================================ */
 function listenUser(uid) {
@@ -845,8 +1014,13 @@ function listenUser(uid) {
     .onSnapshot(snap => {
       habitsMap[uid]  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       habitsLoaded    = true;
-      renderHabits(uid);
-      refreshCalSelect(uid);
+      if (amAdmin) {
+        renderAdminHabits();
+        refreshAdminCalSelect();
+      } else {
+        renderHabits(uid);
+        refreshCalSelect(uid);
+      }
     }, err => console.error('habits snap error', err));
 
   // completions (last 60 days)
@@ -855,8 +1029,15 @@ function listenUser(uid) {
     .onSnapshot(snap => {
       doneMap[uid] = {};
       snap.docs.forEach(d => { doneMap[uid][d.id] = d.data().done; });
-      if (habitsLoaded) renderHabits(uid);
-      renderCalendar();
+      if (habitsLoaded) {
+        if (amAdmin) {
+          renderAdminHabits();
+          renderAdminCalendar();
+        } else {
+          renderHabits(uid);
+          renderCalendar();
+        }
+      }
     }, err => console.error('completions snap error', err));
 
   listeners.push(u1, u2);
@@ -1498,7 +1679,29 @@ function showToast(msg) {
 /* ================================================================
    BOOT
 ================================================================ */
-boot();
+
+// ── AUTO LOGOUT ON TAB/BROWSER CLOSE ────────────────────────
+// Set Firebase auth to SESSION persistence so closing the browser
+// automatically clears the auth token (no remembered login)
+// Boot with session persistence
+(async function() {
+  try { if (!firebase.apps.length) firebase.initializeApp(FB); } catch(e) {}
+  auth = firebase.auth();
+  db   = firebase.firestore();
+
+  // SESSION persistence = logged out when tab/browser closes
+  await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+
+  try { await db.enablePersistence({ synchronizeTabs: true }); } catch(e) {}
+
+  await ensureAdmin();
+
+  auth.onAuthStateChanged(user => {
+    hideSplash();
+    if (user) { me = user; amAdmin = (user.email === ADMIN_EMAIL); launch(); }
+    else       showAuth();
+  });
+})();
 </script>
 
 <script>
