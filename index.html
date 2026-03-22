@@ -107,7 +107,7 @@
     .view-tab.active { color:var(--teal); border-bottom-color:var(--teal); }
 
     /* ── HABITS VIEW ── */
-    #habits-view { display:block; }
+    #habits-view { }
 
     /* Date column header — sticky below topbar+tabs */
     .date-header {
@@ -433,9 +433,10 @@
     @media(min-width:768px) {
       .topbar { padding:0 28px; }
       .date-header, .habit-row { padding:12px 28px; }
-      #admin-view, #calendar-view { max-width:920px; margin:0 auto; }
+      #admin-view, #calendar-view,
+      #admin-calendar-view { max-width:920px; margin:0 auto; }
       #admin-view { padding:24px 28px; }
-      #calendar-view { padding:24px 28px; }
+      #calendar-view, #admin-calendar-view { padding:24px 28px; }
     }
   </style>
 </head>
@@ -490,7 +491,7 @@
   </div>
 
   <!-- ── HABITS VIEW ── -->
-  <div id="habits-view">
+  <div id="habits-view" style="display:none">
     <div class="date-header" id="date-header"></div>
     <div class="habits-list" id="habits-list">
       <div class="state-box"><div class="mini-spin"></div><p>Loading your habits…</p></div>
@@ -498,7 +499,7 @@
   </div>
 
   <!-- ── CALENDAR VIEW ── -->
-  <div id="calendar-view">
+  <div id="calendar-view" style="display:none">
     <div class="cal-header">
       <button class="cal-nav" onclick="calPrev()">‹</button>
       <span class="cal-title" id="cal-month"></span>
@@ -1181,9 +1182,12 @@ function listenAdmin() {
   container.innerHTML = '<div class="state-box"><div class="mini-spin"></div><p>Loading staff data…</p></div>';
 
   const u = db.collection('users').onSnapshot(snap => {
-    usersMap   = {};
-    totalUsers = snap.docs.length;
-    snap.docs.forEach(d => { usersMap[d.id] = d.data(); });
+    usersMap = {};
+    // Exclude admin from usersMap entirely
+    snap.docs.forEach(d => {
+      if (d.data().email !== ADMIN_EMAIL) usersMap[d.id] = d.data();
+    });
+    totalUsers = Object.keys(usersMap).length;
     populateUserFilter();
 
     if (totalUsers === 0) {
@@ -1191,8 +1195,8 @@ function listenAdmin() {
       return;
     }
 
-    // Attach per-user listeners — each will call renderAdminView when ready
-    snap.docs.forEach(d => attachUserListener(d.id));
+    // Attach per-user listeners for staff only (admin excluded)
+    Object.keys(usersMap).forEach(uid => attachUserListener(uid));
   });
   listeners.push(u);
 }
@@ -1200,7 +1204,7 @@ function listenAdmin() {
 function allAdminDataReady() {
   // Render as soon as EVERY user has at least one habits snapshot
   // (completions can trail; we'll re-render again when they arrive)
-  return Object.keys(usersMap).every(uid => habitsReady.has(uid));
+  return Object.keys(usersMap).filter(uid => usersMap[uid]?.email !== ADMIN_EMAIL).every(uid => habitsReady.has(uid));
 }
 
 function attachUserListener(uid) {
@@ -1234,16 +1238,17 @@ function populateUserFilter() {
   const sel = document.getElementById('admin-user-filter');
   const cur = sel.value;
   sel.innerHTML = '<option value="">All Users</option>' +
-    Object.entries(usersMap).map(([uid, u]) =>
-      `<option value="${uid}">${esc(u.name || u.email)}</option>`
-    ).join('');
+    Object.entries(usersMap)
+      .filter(([uid, u]) => u.email !== ADMIN_EMAIL)
+      .map(([uid, u]) => `<option value="${uid}">${esc(u.name || u.email)}</option>`)
+      .join('');
   if (cur) sel.value = cur;
 }
 
 function renderAdminView() {
   const filterUid = document.getElementById('admin-user-filter').value;
   const days      = parseInt(document.getElementById('admin-days').value) || 30;
-  const uids      = filterUid ? [filterUid] : Object.keys(usersMap);
+  const uids      = filterUid ? [filterUid] : Object.keys(usersMap).filter(uid => usersMap[uid]?.email !== ADMIN_EMAIL);
   const container = document.getElementById('admin-content');
 
   if (!uids.length) {
@@ -1290,6 +1295,47 @@ function renderAdminView() {
       <th class="col-habit">Habit</th>
       ${headerCells}
     </tr></thead><tbody>`;
+
+  // ── Admin's own row at top ──
+  const adminUid    = me.uid;
+  const adminHabits = habitsMap[adminUid] || [];
+  const adminComps  = doneMap[adminUid]   || {};
+  const adminDoneToday = adminHabits.filter(h => adminComps[`${h.id}_${today}`] === true).length;
+
+  html += `<tr class="user-label-row" style="background:linear-gradient(90deg,#134e4a,#1a1a2e);color:#fff">
+    <td class="col-habit" colspan="${dateCols.length + 1}"
+      style="color:#5eead4;background:transparent;font-size:1rem">
+      👑 Super Admin (My Habits)
+      <span style="font-size:.8rem;font-weight:400;margin-left:10px;color:#99f6e4">
+        ${adminHabits.length} habit${adminHabits.length !== 1 ? 's' : ''}
+        &nbsp;·&nbsp; Today: ${adminDoneToday}/${adminHabits.length} done
+      </span>
+    </td>
+  </tr>`;
+
+  if (!adminHabits.length) {
+    html += `<tr><td class="col-habit" colspan="${dateCols.length + 1}"
+      style="padding:12px;color:var(--muted);font-size:.84rem">No habits added yet</td></tr>`;
+  } else {
+    adminHabits.forEach(h => {
+      const cells = dateCols.map(ds => {
+        const isDone = adminComps[`${h.id}_${ds}`] === true;
+        const isFut  = ds > today;
+        if (isFut) return `<td class="day-cell" style="opacity:.25">—</td>`;
+        return `<td class="day-cell"><span class="${isDone ? 'cell-done' : 'cell-miss'}">${isDone ? '✓' : '✕'}</span></td>`;
+      }).join('');
+      html += `<tr><td class="col-habit">${h.emoji || '⭐'} ${esc(h.name)}</td>${cells}</tr>`;
+    });
+    const adminSumCells = dateCols.map(ds => {
+      const isFut = ds > today;
+      if (isFut) return `<td class="day-cell" style="opacity:.25;background:#f3f4f6">—</td>`;
+      const n   = adminHabits.filter(h => adminComps[`${h.id}_${ds}`] === true).length;
+      const pct = adminHabits.length ? Math.round(n / adminHabits.length * 100) : 0;
+      const col = pct === 100 ? 'var(--green)' : pct >= 50 ? 'var(--teal)' : 'var(--muted)';
+      return `<td class="day-cell" style="font-size:.75rem;font-weight:700;color:${col};background:#f3f4f6">${n}/${adminHabits.length}</td>`;
+    }).join('');
+    html += `<tr class="summary-row"><td class="col-habit">Daily total</td>${adminSumCells}</tr>`;
+  }
 
   uids.forEach(uid => {
     const user   = usersMap[uid]; if (!user) return;
@@ -1475,76 +1521,87 @@ async function exportExcel() {
     cur.setDate(cur.getDate() + 1);
   }
 
-  const filterUid = document.getElementById('admin-user-filter').value;
-  const uids      = filterUid ? [filterUid] : Object.keys(usersMap);
+  const filterUid  = document.getElementById('admin-user-filter').value;
+  const staffUids  = filterUid ? [filterUid] : Object.keys(usersMap).filter(uid => usersMap[uid]?.email !== ADMIN_EMAIL);
+  const adminUid   = me.uid;
+  const allUids    = [adminUid, ...staffUids];
 
   showToast('Preparing export…');
 
-  // For each user, fetch completions for the full requested range from Firestore
-  // (in case the range is beyond our 60-day in-memory cache)
+  // Fetch completions for admin + all staff for the full date range
   const exportComps = {};
-  await Promise.all(uids.map(async uid => {
+  await Promise.all(allUids.map(async uid => {
     try {
-      const snap = await db.collection(`users/${uid}/completions`)
+      const snap = await db.collection('users/' + uid + '/completions')
         .where('date', '>=', from)
         .where('date', '<=', to)
         .get();
       exportComps[uid] = {};
       snap.docs.forEach(d => { exportComps[uid][d.id] = d.data().done; });
     } catch(e) {
-      // Fallback to in-memory cache
       exportComps[uid] = doneMap[uid] || {};
     }
   }));
 
   const wb = XLSX.utils.book_new();
 
-  uids.forEach(uid => {
+  // ── Admin sheet first ──
+  const adminHabits = habitsMap[adminUid] || [];
+  const adminComps  = exportComps[adminUid] || {};
+  if (adminHabits.length) {
+    const adminRows = [
+      ['Habit', ...dates],
+      ...adminHabits.map(h => [
+        ((h.emoji || '') + ' ' + h.name).trim(),
+        ...dates.map(d => adminComps[h.id + '_' + d] === true ? '✓' : '✕')
+      ]),
+      [],
+      ['Total Done', ...dates.map(d =>
+        adminHabits.filter(h => adminComps[h.id + '_' + d] === true).length + '/' + adminHabits.length
+      )]
+    ];
+    const aws = XLSX.utils.aoa_to_sheet(adminRows);
+    aws['!cols'] = [{ wch: 34 }, ...dates.map(() => ({ wch: 12 }))];
+    XLSX.utils.book_append_sheet(wb, aws, 'Super Admin');
+  }
+
+  // ── One sheet per staff user ──
+  staffUids.forEach(uid => {
     const user   = usersMap[uid]; if (!user) return;
     const habits = habitsMap[uid] || [];
     const comps  = exportComps[uid] || {};
     if (!habits.length) return;
-
-    // Header row: Habit name | date1 | date2 | ...
-    const headerRow = ['Habit', ...dates];
-    const dataRows  = habits.map(h => [
-      `${h.emoji || ''} ${h.name}`.trim(),
-      ...dates.map(d => comps[`${h.id}_${d}`] === true ? '✓' : '✕')
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Habit', ...dates],
+      ...habits.map(h => [
+        ((h.emoji || '') + ' ' + h.name).trim(),
+        ...dates.map(d => comps[h.id + '_' + d] === true ? '✓' : '✕')
+      ]),
+      [],
+      ['Total Done', ...dates.map(d =>
+        habits.filter(h => comps[h.id + '_' + d] === true).length + '/' + habits.length
+      )]
     ]);
-
-    // Summary row at bottom
-    const summaryRow = [
-      'Total Done',
-      ...dates.map(d => habits.filter(h => comps[`${h.id}_${d}`] === true).length
-        + '/' + habits.length)
-    ];
-
-    const ws = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows, [], summaryRow]);
     ws['!cols'] = [{ wch: 34 }, ...dates.map(() => ({ wch: 12 }))];
-
-    // Bold header styling hint (SheetJS community edition — basic)
-    const sheetName = (user.name || uid).slice(0, 31).replace(/[:\\/?*[\]]/g, '_');
+    const sheetName = (user.name || uid).slice(0, 31).replace(/[:\\/\?\*\[\]]/g, '_');
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
 
-  // ── Summary sheet across all users ──
-  const sumHeader = ['User', 'Email', 'Total Habits', ...dates];
-  const sumRows   = uids.map(uid => {
+  // ── Summary sheet — admin row first, then staff ──
+  const sumHeader = ['User', 'Email', 'Role', 'Total Habits', ...dates];
+  const adminSum  = [
+    me.displayName || 'Super Admin', ADMIN_EMAIL, 'Admin', adminHabits.length,
+    ...dates.map(d => adminHabits.filter(h => adminComps[h.id + '_' + d] === true).length + '/' + adminHabits.length)
+  ];
+  const staffSum = staffUids.map(uid => {
     const u = usersMap[uid] || {};
     const h = habitsMap[uid] || [];
     const c = exportComps[uid] || {};
-    return [
-      u.name  || '',
-      u.email || '',
-      h.length,
-      ...dates.map(d => {
-        const done  = h.filter(hb => c[`${hb.id}_${d}`] === true).length;
-        return `${done}/${h.length}`;
-      })
-    ];
+    return [u.name || '', u.email || '', 'Staff', h.length,
+      ...dates.map(d => h.filter(hb => c[hb.id + '_' + d] === true).length + '/' + h.length)];
   });
-  const sw = XLSX.utils.aoa_to_sheet([sumHeader, ...sumRows]);
-  sw['!cols'] = [{ wch: 22 }, { wch: 30 }, { wch: 13 }, ...dates.map(() => ({ wch: 12 }))];
+  const sw = XLSX.utils.aoa_to_sheet([sumHeader, adminSum, ...staffSum]);
+  sw['!cols'] = [{ wch: 22 }, { wch: 30 }, { wch: 8 }, { wch: 13 }, ...dates.map(() => ({ wch: 12 }))];
   XLSX.utils.book_append_sheet(wb, sw, 'Summary');
 
   const filename = `HabitFlow_${from}_to_${to}.xlsx`;
