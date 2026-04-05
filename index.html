@@ -2,12 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HabitFlow – Daily Habits Tracker</title>
   <meta name="description" content="Track your daily habits with real-time updates" />
   <meta name="theme-color" content="#0d9488" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-192.png" />
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="HabitFlow" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -424,19 +429,101 @@
     }
     #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
-    /* ── RESPONSIVE ── */
+    /* ── RESPONSIVE — MOBILE FIRST ── */
+
+    /* Base mobile fixes */
+    * { -webkit-tap-highlight-color: transparent; }
+    input, select, button { font-size:16px !important; } /* prevents iOS zoom on focus */
+
+    /* Auth card — full width on mobile */
+    .auth-card { padding:28px 20px; }
+
+    /* Topbar — tighter on mobile */
+    .topbar-user { max-width:90px; font-size:.75rem; }
+
+    /* View tabs — smaller text on mobile */
+    .view-tab { font-size:.78rem; padding:11px 4px; }
+
+    /* Habits — tight mobile grid */
+    .date-header, .habit-row {
+      grid-template-columns: 1fr repeat(4, 44px);
+      padding: 9px 10px;
+    }
+    .habit-name { font-size:.95rem; }
+    .check-btn { width:34px; height:34px; font-size:.9rem; }
+    .hab-btn { width:26px; height:26px; font-size:.8rem; }
+
+    /* Admin controls — stack on mobile */
+    .admin-controls { flex-direction:column; align-items:stretch; }
+    .ctrl-select { min-width:unset; width:100%; }
+    .days-range-wrap { width:100%; }
+    .days-range-wrap label { font-size:.82rem; }
+    .days-select { flex:1; }
+    .btn-export, .btn-adduser { width:100%; text-align:center; padding:12px; font-size:.9rem; }
+
+    /* Admin spreadsheet — horizontal scroll on mobile */
+    .admin-sheet-wrap { border-radius:10px; }
+    .admin-sheet .col-habit { min-width:130px; max-width:150px; font-size:.88rem; }
+    .admin-sheet thead tr th { font-size:.65rem; padding:8px 5px; }
+    .admin-sheet td.day-cell { min-width:32px; padding:6px 2px; }
+    .cell-done, .cell-miss { width:24px; height:24px; font-size:.8rem; }
+
+    /* Export modal — stack date range on mobile */
+    .export-range { grid-template-columns:1fr; }
+    .quick-ranges { gap:4px; }
+    .qr-btn { font-size:.75rem; padding:5px 10px; }
+
+    /* Emoji grid — 6 cols on very small screens */
     @media(max-width:360px) {
-      .date-header, .habit-row { grid-template-columns:1fr repeat(4,46px); padding:9px 10px; }
-      .check-btn { width:34px; height:34px; }
-      .habit-name { font-size:1rem; }
+      .emoji-grid { grid-template-columns:repeat(6,1fr); }
+      .date-header, .habit-row { grid-template-columns:1fr repeat(4,40px); padding:8px 8px; }
+      .check-btn { width:30px; height:30px; }
+    }
+
+    /* FAB — slightly smaller on mobile */
+    .fab { width:52px; height:52px; font-size:1.5rem; bottom:20px; right:16px; }
+
+    /* Calendar — proper sizing on mobile */
+    .cal-cell { font-size:.78rem; }
+    .cal-lbl { font-size:.65rem; }
+
+    /* Modal — full width bottom sheet on mobile */
+    .modal { padding:22px 16px 32px; }
+    .modal-title { font-size:1.5rem; margin-bottom:16px; }
+
+    /* Admin panel heading */
+    .admin-title { font-size:1.6rem; }
+    .admin-hdr { flex-direction:column; gap:8px; align-items:flex-start; }
+
+    /* Toast — wider on mobile */
+    #toast { white-space:normal; text-align:center; width:85%; max-width:320px; }
+
+    /* Desktop overrides */
+    @media(min-width:600px) {
+      input, select, button { font-size:unset !important; }
+      .auth-card { padding:40px 36px; }
+      .topbar-user { max-width:140px; font-size:.82rem; }
+      .view-tab { font-size:.85rem; padding:13px 8px; }
     }
     @media(min-width:768px) {
       .topbar { padding:0 28px; }
-      .date-header, .habit-row { padding:12px 28px; }
+      .date-header, .habit-row { grid-template-columns:1fr repeat(4,54px); padding:12px 28px; }
+      .check-btn { width:38px; height:38px; font-size:1rem; }
+      .habit-name { font-size:1.1rem; }
+      .admin-controls { flex-direction:row; align-items:center; }
+      .ctrl-select { min-width:150px; width:auto; }
+      .btn-export, .btn-adduser { width:auto; }
+      .days-select { flex:none; }
       #admin-view, #calendar-view,
       #admin-calendar-view { max-width:920px; margin:0 auto; }
       #admin-view { padding:24px 28px; }
       #calendar-view, #admin-calendar-view { padding:24px 28px; }
+      .export-range { grid-template-columns:1fr 1fr; }
+      .emoji-grid { grid-template-columns:repeat(8,1fr); }
+      .admin-sheet .col-habit { min-width:160px; max-width:200px; font-size:.83rem; }
+      .cell-done, .cell-miss { width:26px; height:26px; font-size:.88rem; }
+      .fab { width:58px; height:58px; font-size:1.7rem; }
+      .admin-hdr { flex-direction:row; align-items:flex-start; }
     }
   </style>
 </head>
@@ -675,7 +762,7 @@ const FB = {
   appId:             "1:161012516176:web:43ef02d63521e6cb631855"
 };
 const ADMIN_EMAIL = "deepvernekar1097@gmail.com";
-const ADMIN_PASS  = "Deepu@123";
+// Password removed from code — admin account already exists in Firebase
 
 /* ================================================================
    DATE HELPERS  — all LOCAL time, never UTC
@@ -725,17 +812,7 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 ================================================================ */
 function hideSplash() { document.getElementById('splash').style.display = 'none'; }
 
-async function ensureAdmin() {
-  try {
-    const c = await auth.createUserWithEmailAndPassword(ADMIN_EMAIL, ADMIN_PASS);
-    await c.user.updateProfile({ displayName: 'Super Admin' });
-    await db.doc('config/admin').set({ email: ADMIN_EMAIL });
-    await auth.signOut();
-  } catch(e) {
-    if (e.code !== 'auth/email-already-in-use')
-      console.warn('ensureAdmin:', e.message);
-  }
-}
+
 
 /* ================================================================
    AUTH
@@ -1750,8 +1827,6 @@ function showToast(msg) {
   await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
 
   try { await db.enablePersistence({ synchronizeTabs: true }); } catch(e) {}
-
-  await ensureAdmin();
 
   auth.onAuthStateChanged(user => {
     hideSplash();
