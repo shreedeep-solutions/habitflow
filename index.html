@@ -86,27 +86,25 @@
     #app-screen { display:none; min-height:100vh; flex-direction:column; background:var(--teal-bg); }
 
     .topbar {
-      background:var(--dark); color:#fff; padding:0 16px; height:56px;
+      background:var(--dark); color:#fff; padding:0 14px; height:42px;
       display:flex; align-items:center; justify-content:space-between;
-      position:sticky; top:0; z-index:100; box-shadow:0 2px 12px rgba(0,0,0,.2);
+      position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,.2);
     }
-    .topbar-title { font-family:var(--font-hand); font-size:1.9rem; color:var(--teal-light); }
-    .topbar-right { display:flex; align-items:center; gap:10px; }
-    .topbar-user { font-size:.82rem; color:#9ca3af; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .topbar-user { font-size:.82rem; color:#9ca3af; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .btn-icon {
-      background:rgba(255,255,255,.1); border:none; color:#fff; width:36px; height:36px;
-      border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center;
-      font-size:1.1rem; transition:background .2s;
+      background:rgba(255,255,255,.1); border:none; color:#fff; width:30px; height:30px;
+      border-radius:7px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+      font-size:1rem; transition:background .2s; flex-shrink:0;
     }
     .btn-icon:hover { background:rgba(255,255,255,.2); }
 
     .view-tabs {
       background:#fff; display:flex; border-bottom:2px solid var(--border);
-      position:sticky; top:56px; z-index:90; box-shadow:0 1px 4px rgba(0,0,0,.04);
+      position:sticky; top:42px; z-index:90; box-shadow:0 1px 4px rgba(0,0,0,.04);
     }
     .view-tab {
-      flex:1; padding:13px 8px; text-align:center; border:none; background:none;
-      font-family:var(--font-body); font-size:.85rem; font-weight:500; color:var(--muted);
+      flex:1; padding:9px 4px; text-align:center; border:none; background:none;
+      font-family:var(--font-body); font-size:.78rem; font-weight:500; color:var(--muted);
       cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; transition:all .2s;
     }
     .view-tab.active { color:var(--teal); border-bottom-color:var(--teal); }
@@ -119,7 +117,7 @@
       background:#fff; border-bottom:1px solid var(--border);
       display:grid; grid-template-columns:1fr repeat(4, 54px);
       padding:8px 14px; gap:4px;
-      position:sticky; top:104px; z-index:80;
+      position:sticky; top:83px; z-index:80;
       box-shadow:0 1px 0 var(--border);
     }
     .date-col {
@@ -439,10 +437,9 @@
     .auth-card { padding:28px 20px; }
 
     /* Topbar — tighter on mobile */
-    .topbar-user { max-width:90px; font-size:.75rem; }
+    .topbar-user { max-width:160px; font-size:.8rem; }
 
-    /* View tabs — smaller text on mobile */
-    .view-tab { font-size:.78rem; padding:11px 4px; }
+    /* View tabs — already set in base CSS */
 
     /* Habits — tight mobile grid */
     .date-header, .habit-row {
@@ -506,7 +503,9 @@
       .view-tab { font-size:.85rem; padding:13px 8px; }
     }
     @media(min-width:768px) {
-      .topbar { padding:0 28px; }
+      .topbar { padding:0 28px; height:48px; }
+      .view-tabs { top:48px; }
+      .date-header { top:89px; }
       .date-header, .habit-row { grid-template-columns:1fr repeat(4,54px); padding:12px 28px; }
       .check-btn { width:38px; height:38px; font-size:1rem; }
       .habit-name { font-size:1.1rem; }
@@ -525,6 +524,21 @@
       .fab { width:58px; height:58px; font-size:1.7rem; }
       .admin-hdr { flex-direction:row; align-items:flex-start; }
     }
+
+    /* ── PORTRAIT: hide habit emoji to save space ── */
+    @media (orientation: portrait) {
+      .habit-emoji { display:none; }
+      .habit-info { gap:6px; }
+      .date-header, .habit-row { grid-template-columns:1fr repeat(4,40px); padding:8px 10px; }
+      .check-btn { width:32px; height:32px; font-size:.85rem; }
+      .habit-name { font-size:.9rem; }
+    }
+
+    /* ── LANDSCAPE: show habit emoji normally ── */
+    @media (orientation: landscape) {
+      .habit-emoji { display:flex; }
+    }
+
   </style>
 </head>
 <body>
@@ -559,22 +573,19 @@
 <div id="app-screen">
   <!-- Top bar -->
   <div class="topbar">
-    <span class="topbar-title">HabitFlow</span>
-    <div class="topbar-right">
-      <span class="topbar-user" id="topbar-name"></span>
-      <button class="btn-icon" onclick="doLogout()" title="Sign out">⏏</button>
-    </div>
+    <span class="topbar-user" id="topbar-name"></span>
+    <button class="btn-icon" onclick="doLogout()" title="Sign out">⏏</button>
   </div>
 
   <!-- Tab bar: users see Today+Calendar, admin sees only Admin Panel -->
   <div class="view-tabs" id="user-tabs" style="display:none">
-    <button class="view-tab active" id="tab-habits"   onclick="gotoView('habits')">📋 Today</button>
-    <button class="view-tab"        id="tab-calendar" onclick="gotoView('calendar')">📅 Calendar</button>
+    <button class="view-tab active" id="tab-habits"   onclick="gotoView('habits')">Today</button>
+    <button class="view-tab"        id="tab-calendar" onclick="gotoView('calendar')">Calendar</button>
   </div>
   <div class="view-tabs" id="admin-tabs" style="display:none">
-    <button class="view-tab active" id="atab-myhabits" onclick="gotoAdminTab('myhabits')">📋 My Habits</button>
-    <button class="view-tab"        id="atab-calendar" onclick="gotoAdminTab('calendar')">📅 Calendar</button>
-    <button class="view-tab"        id="atab-staff"    onclick="gotoAdminTab('staff')">👑 Staff Panel</button>
+    <button class="view-tab active" id="atab-myhabits" onclick="gotoAdminTab('myhabits')">My Habits</button>
+    <button class="view-tab"        id="atab-calendar" onclick="gotoAdminTab('calendar')">Calendar</button>
+    <button class="view-tab"        id="atab-staff"    onclick="gotoAdminTab('staff')">Staff Panel</button>
   </div>
 
   <!-- ── HABITS VIEW ── -->
