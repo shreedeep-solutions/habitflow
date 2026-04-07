@@ -1,8 +1,8 @@
-const CACHE_NAME = 'habitflow-v1';
+const CACHE_NAME = 'habitflow-v2';
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json'
+  '/habitflow/',
+  '/habitflow/index.html',
+  '/habitflow/manifest.json'
 ];
 
 self.addEventListener('install', event => {
@@ -22,7 +22,6 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Network first for Firebase, cache first for static assets
   if (event.request.url.includes('firebase') ||
       event.request.url.includes('googleapis') ||
       event.request.url.includes('gstatic') ||
@@ -42,7 +41,7 @@ self.addEventListener('fetch', event => {
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
         }
         return response;
-      }).catch(() => caches.match('/index.html'));
+      }).catch(() => caches.match('/habitflow/index.html'));
     })
   );
 });
