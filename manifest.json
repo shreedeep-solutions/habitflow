@@ -1,28 +1,19 @@
 {
+  "id": "./",
   "name": "HabitFlow – Daily Habits Tracker",
   "short_name": "HabitFlow",
   "description": "Track your daily habits with real-time team updates",
-  "start_url": "/habitflow/",
-  "scope": "/habitflow/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#f0fdfa",
-  "theme_color": "#0d9488",
-  "orientation": "portrait-primary",
+  "theme_color": "#1a1a2e",
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "categories": ["productivity", "lifestyle"],
-  "screenshots": [],
   "prefer_related_applications": false
 }

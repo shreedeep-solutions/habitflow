@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn()   { return request.auth != null; }
+    function isAdmin()    { return signedIn() && request.auth.token.email == 'deepvernekar1097@gmail.com'; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+
+    // Staff profile docs: the person themselves or the admin
+    match /users/{uid} {
+      allow read, write: if isOwner(uid) || isAdmin();
+
+      // Habits and ticks: only the owner can change them; admin can view them
+      match /{sub}/{docId} {
+        allow read:  if isOwner(uid) || isAdmin();
+        allow write: if isOwner(uid);
+      }
+    }
+  }
+}
