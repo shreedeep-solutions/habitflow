@@ -306,7 +306,11 @@
       font-family:var(--font-hand); font-size:1.15rem; font-weight:700; color:var(--teal-dark);
     }
     .sheet tr.grp-admin td { background:linear-gradient(90deg,#134e4a,#1a1a2e); color:#5eead4; border-top:none; }
-    .lbl-inner { position:sticky; left:12px; display:inline-block; }
+    /* Group label stays visible while the sheet scrolls sideways; it wraps so it never gets wider than the screen */
+    .lbl-inner {
+      position:sticky; left:12px; display:inline-block; white-space:normal;
+      max-width:min(calc(100vw - 72px), 840px); line-height:1.5;
+    }
     .grp-meta { font-family:var(--font-body); font-size:.74rem; font-weight:500; margin-left:8px; opacity:.85; }
     .grp-email { font-family:var(--font-body); font-size:.72rem; font-weight:400; margin-left:8px; opacity:.65; }
     .sheet tr.sum td { background:#f3f4f6; font-size:.72rem; font-weight:700; color:var(--muted); text-align:center; padding:6px 2px; }
@@ -314,6 +318,31 @@
     .sheet tr.sum td.sum-full { color:var(--green); }
     .sheet tr.sum td.sum-half { color:var(--teal); }
     .sheet td.empty-row { color:var(--muted); font-size:.84rem; padding:12px; }
+    .grp-btn {
+      font-family:var(--font-body); font-size:.74rem; font-weight:600; margin-left:10px; padding:3px 11px;
+      border-radius:14px; border:1px solid var(--teal-pale); background:#fff; color:var(--teal-dark);
+      cursor:pointer; vertical-align:middle;
+    }
+    .grp-btn:hover { border-color:var(--teal); }
+
+    /* ── MANAGE STAFF ── */
+    .mg-email { font-size:.84rem; color:var(--muted); margin:-10px 0 4px; word-break:break-all; }
+    .mg-section { margin-top:16px; }
+    .mg-label { font-size:.74rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px; }
+    .mg-habits { border:1px solid var(--border); border-radius:10px; max-height:220px; overflow-y:auto; }
+    .mg-habit { display:flex; align-items:center; gap:8px; padding:6px 6px 6px 12px; border-bottom:1px solid var(--border); }
+    .mg-habit:last-child { border-bottom:none; }
+    .mg-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.92rem; }
+    .mg-empty { padding:14px; color:var(--muted); font-size:.86rem; text-align:center; }
+    .mg-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .btn-soft {
+      padding:11px 8px; border:1.5px solid var(--border); border-radius:10px; background:#fff;
+      font-size:.88rem; font-weight:600; color:var(--mid); cursor:pointer;
+    }
+    .btn-soft:hover { border-color:var(--teal); color:var(--teal-dark); }
+    .btn-soft.danger { color:var(--red); border-color:#fecaca; }
+    .btn-soft.danger:hover { background:var(--red-bg); border-color:var(--red); }
+    .confirm-msg { font-size:.9rem; color:var(--mid); line-height:1.55; }
 
     /* ── MODALS ── */
     .overlay {
@@ -610,6 +639,77 @@
   </div>
 </div>
 
+<!-- MANAGE STAFF (admin) -->
+<div class="overlay" id="m-manage">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="manage-title">
+    <div class="modal-title" id="manage-title">⚙ Manage</div>
+    <div class="mg-email" id="manage-email"></div>
+    <div class="mg-section">
+      <div class="mg-label">Habits</div>
+      <div class="mg-habits" id="manage-habits"></div>
+    </div>
+    <div class="mg-section">
+      <div class="mg-label">Password</div>
+      <div class="mg-actions">
+        <button class="btn-soft" onclick="openChangePass()">🔑 Change password</button>
+        <button class="btn-soft" onclick="sendStaffReset()">✉ Send reset link</button>
+      </div>
+    </div>
+    <div class="mg-section">
+      <div class="mg-label">Danger zone</div>
+      <div class="mg-actions">
+        <button class="btn-soft danger" id="mg-delall" onclick="deleteAllStaffHabits()">🗑 Delete all habits</button>
+        <button class="btn-soft danger" onclick="removeStaffUser()">⛔ Remove user</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal('m-manage')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGE STAFF PASSWORD (admin) -->
+<div class="overlay" id="m-pass">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-title">🔑 New password for <span id="pass-for"></span></div>
+    <div class="form-group">
+      <label for="pass-new">New password</label>
+      <div class="pw-wrap">
+        <input type="password" id="pass-new" placeholder="Min 6 characters" autocomplete="new-password" />
+        <button type="button" class="pw-eye" onclick="togglePw('pass-new', this)" aria-label="Show password">👁</button>
+      </div>
+    </div>
+    <div class="form-group" id="pass-cur-wrap" hidden>
+      <label for="pass-cur">Their current password</label>
+      <div class="pw-wrap">
+        <input type="password" id="pass-cur" placeholder="Needed only this once" autocomplete="off" />
+        <button type="button" class="pw-eye" onclick="togglePw('pass-cur', this)" aria-label="Show password">👁</button>
+      </div>
+    </div>
+    <div class="msg" id="pass-msg"></div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal('m-pass')">Cancel</button>
+      <button class="btn-ok" id="pass-btn" onclick="saveStaffPass()">Change Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- GENERIC CONFIRM -->
+<div class="overlay" id="m-confirm">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-title" id="confirm-title" style="color:#ef4444">Are you sure?</div>
+    <p class="confirm-msg" id="confirm-msg"></p>
+    <div class="form-group" id="confirm-type-wrap" style="margin-top:14px" hidden>
+      <label for="confirm-type">Type <strong>DELETE</strong> to confirm</label>
+      <input type="text" id="confirm-type" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal('m-confirm')">Cancel</button>
+      <button class="btn-danger" id="confirm-ok" onclick="confirmOk()">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -718,7 +818,7 @@ function resetState() {
     unsubs: [], staffSubs: {},
     calY: new Date().getFullYear(), calM: new Date().getMonth(),
     editingId: null, deletingId: null, pickedEmoji: '⭐', revealedId: null,
-    staffDirty: true, staffScrollKey: null,
+    staffDirty: true, staffScrollKey: null, registered: false, manageUid: null,
   });
 }
 function stopListeners() {
@@ -748,7 +848,7 @@ function flushRenders() {
   if (p.has('habits'))   renderHabits();
   if (p.has('calsel'))   refreshCalSelect();
   if (p.has('calendar')) renderCalendar();
-  if (p.has('staff'))    renderStaff();
+  if (p.has('staff'))    { renderStaff(); if ($('m-manage').classList.contains('open')) renderManage(); }
 }
 
 /* ================================================================
@@ -844,6 +944,7 @@ function clearAppDom() {
 function closeAllModals() {
   document.querySelectorAll('.overlay.open').forEach(o => o.classList.remove('open'));
   document.body.classList.remove('modal-open');
+  if (typeof confirmResolve !== 'undefined' && confirmResolve) { const r = confirmResolve; confirmResolve = null; r(false); }
 }
 function startSession(user) {
   resetState(); clearAppDom(); closeAllModals();
@@ -861,22 +962,37 @@ function startSession(user) {
   refreshEmojiGrid('⭐');
   $('habits-list').innerHTML = spinner('Loading your habits…');
   listenOwn();
-  if (S.isAdmin) listenStaff(); else registerSelf();
+  if (S.isAdmin) listenStaff(); else watchOwnProfile();
   go('habits');
   updateHeaderHeight();
 }
+let pendingAuthMsg = '';
 function endSession() {
   resetState(); clearAppDom(); closeAllModals();
   $('app-screen').hidden  = true;
   $('auth-screen').hidden = false;
-  setAuthMsg('');
+  setAuthMsg(pendingAuthMsg, 'error');
+  pendingAuthMsg = '';
 }
-/* Make sure every staff member has a /users doc so they show up in the Staff Panel */
-function registerSelf() {
+/* Staff: watch own profile — sign out at once if the admin removes this account,
+   and make sure a /users doc exists so the staff member shows up in the Staff Panel. */
+function watchOwnProfile() {
   const u = S.me;
-  const data = { email: u.email, uid: u.uid };
-  if (u.displayName) data.name = u.displayName;
-  db.doc(`users/${u.uid}`).set(data, { merge: true }).catch(e => console.warn('register user doc', e));
+  S.unsubs.push(db.doc(`users/${u.uid}`).onSnapshot(snap => {
+    const d = snap.exists ? snap.data() : null;
+    if (d && d.removed === true) {
+      pendingAuthMsg = 'Your account has been removed by the admin.';
+      stopListeners();
+      auth.signOut();
+      return;
+    }
+    if (S.registered) return;
+    S.registered = true;
+    if (d && d.email === u.email && (d.name || !u.displayName)) return;   // already complete
+    const data = { email: u.email, uid: u.uid };
+    if (u.displayName) data.name = u.displayName;
+    db.doc(`users/${u.uid}`).set(data, { merge: true }).catch(e => console.warn('register user doc', e));
+  }, err => console.warn('profile watch', err)));
 }
 
 /* ================================================================
@@ -1103,6 +1219,7 @@ function listenStaff() {
     snap.docs.forEach(d => {
       const u = d.data();
       if (d.id === S.me.uid || isAdminEmail(u.email)) return;   // admin is shown separately at the top
+      if (u.removed === true) return;                           // removed staff are hidden
       users[d.id] = { ...u, uid: d.id };
     });
     // detach listeners of removed users
@@ -1158,7 +1275,8 @@ function staffGroupRows(uid, label, isAdminRow, dates) {
   const doneToday = habits.filter(h => isDone(uid, `${h.id}_${t}`)).length;
   let html = `<tr class="${cls}"><td colspan="${cols}"><span class="lbl-inner">${esc(label)}
     <span class="grp-meta">${habits.length} habit${habits.length !== 1 ? 's' : ''} · Today: ${doneToday}/${habits.length} done</span>
-    ${email ? `<span class="grp-email">${esc(email)}</span>` : ''}</span></td></tr>`;
+    ${email ? `<span class="grp-email">${esc(email)}</span>` : ''}
+    ${isAdminRow ? '' : `<button type="button" class="grp-btn" data-act="manage" data-uid="${esc(uid)}">⚙ Manage</button>`}</span></td></tr>`;
   if (S.loadErr.has(uid) && !habits.length) {
     return html + `<tr><td class="empty-row" colspan="${cols}"><span class="lbl-inner">⚠️ Could not load this user's data (check Firestore rules).</span></td></tr>`;
   }
@@ -1242,14 +1360,13 @@ async function saveUser() {
   if (isAdminEmail(email)) return say('That is the admin email — use a different one for staff.');
 
   const btn = $('u-btn'); setBusy(btn, true, 'Creating…'); say('');
-  let sec;
-  try { sec = firebase.app('hf-secondary'); } catch (e) { sec = firebase.initializeApp(FB, 'hf-secondary'); }
-  const secAuth = sec.auth();
+  const secAuth = secondaryAuth();
   try {
     await secAuth.setPersistence(firebase.auth.Auth.Persistence.NONE);
     const cred = await secAuth.createUserWithEmailAndPassword(email, pass);
     try { await cred.user.updateProfile({ displayName: name }); } catch (e) { console.warn('displayName', e); }
     await db.doc(`users/${cred.user.uid}`).set({ name, email, uid: cred.user.uid, createdAt: new Date().toISOString() });
+    await saveSecret(cred.user.uid, email, pass);
     closeModal('m-user');
     toast(`"${name}" created ✓ — share the email & password with them`, 4000);
   } catch (e) {
@@ -1451,16 +1568,215 @@ async function confirmDelete() {
   S.deletingId = null; S.revealedId = null;
   closeModal('m-delete');
   toast('Deleting…');
+  try { await deleteHabitData(uid, id); toast('Habit deleted'); }
+  catch (e) { toast('Delete failed: ' + friendlyError(e)); }
+}
+
+/* Delete helpers (used by staff for their own habits and by the admin) */
+async function deleteDocs(docs) {
+  for (let i = 0; i < docs.length; i += 400) {                  // Firestore batch limit is 500
+    const batch = db.batch();
+    docs.slice(i, i + 400).forEach(d => batch.delete(d.ref));
+    await batch.commit();
+  }
+}
+async function deleteHabitData(uid, habitId) {
+  await db.doc(`users/${uid}/habits/${habitId}`).delete();
+  const snap = await db.collection(`users/${uid}/completions`).where('habitId', '==', habitId).get();
+  await deleteDocs(snap.docs);
+}
+async function deleteAllUserData(uid) {
+  const [h, c] = await Promise.all([
+    db.collection(`users/${uid}/habits`).get(),
+    db.collection(`users/${uid}/completions`).get()
+  ]);
+  await deleteDocs([...h.docs, ...c.docs]);
+}
+
+/* ================================================================
+   ADMIN — MANAGE STAFF (delete habits, change password, remove user)
+   Staff passwords set by the admin are kept in /secrets/{uid}, which
+   only the admin can read (see firestore.rules). The admin uses it to
+   sign in as that staff member on a separate, invisible Firebase
+   instance to change the password or delete the login.
+================================================================ */
+function secondaryAuth() {
+  let sec;
+  try { sec = firebase.app('hf-secondary'); } catch (e) { sec = firebase.initializeApp(FB, 'hf-secondary'); }
+  return sec.auth();
+}
+async function withStaffLogin(email, password, fn) {
+  const a = secondaryAuth();
+  await a.setPersistence(firebase.auth.Auth.Persistence.NONE);
   try {
-    await db.doc(`users/${uid}/habits/${id}`).delete();
-    const snap = await db.collection(`users/${uid}/completions`).where('habitId', '==', id).get();
-    for (let i = 0; i < snap.docs.length; i += 400) {           // Firestore batch limit is 500
-      const batch = db.batch();
-      snap.docs.slice(i, i + 400).forEach(d => batch.delete(d.ref));
-      await batch.commit();
+    const cred = await a.signInWithEmailAndPassword(email, password);
+    return await fn(cred.user);
+  } finally { a.signOut().catch(() => {}); }
+}
+function saveSecret(uid, email, password) {
+  return db.doc(`secrets/${uid}`).set({ email, password, updatedAt: new Date().toISOString() });
+}
+async function loadSecret(uid) {
+  try { const s = await db.doc(`secrets/${uid}`).get(); return s.exists ? (s.data().password || null) : null; }
+  catch (e) { console.warn('secret', e); return null; }
+}
+const isBadLogin = e => ['auth/invalid-credential', 'auth/invalid-login-credentials', 'auth/wrong-password'].includes(e && e.code);
+
+$('staff-content').addEventListener('click', e => {
+  const b = e.target.closest('[data-act="manage"]');
+  if (b) openManage(b.dataset.uid);
+});
+function openManage(uid) {
+  if (!S.users[uid]) return;
+  S.manageUid = uid;
+  renderManage();
+  openModal('m-manage');
+}
+function renderManage() {
+  const uid = S.manageUid, u = S.users[uid];
+  if (!u) { closeModal('m-manage'); return; }
+  $('manage-title').textContent = '⚙ ' + userLabel(u);
+  $('manage-email').textContent = u.email || '';
+  const habits = S.habits[uid] || [];
+  $('manage-habits').innerHTML = habits.length
+    ? habits.map(h => `<div class="mg-habit"><span class="mg-name" title="${esc(h.name)}">${esc(h.emoji || '⭐')} ${esc(h.name)}</span>
+        <button type="button" class="hab-btn hab-btn-del" data-act="del-staff-habit" data-id="${esc(h.id)}" title="Delete habit" aria-label="Delete ${esc(h.name)}">🗑</button></div>`).join('')
+    : '<div class="mg-empty">No habits.</div>';
+  $('mg-delall').disabled = !habits.length;
+}
+$('manage-habits').addEventListener('click', async e => {
+  const b = e.target.closest('[data-act="del-staff-habit"]'); if (!b) return;
+  const uid = S.manageUid, u = S.users[uid];
+  const h = (S.habits[uid] || []).find(x => x.id === b.dataset.id); if (!u || !h) return;
+  const ok = await askConfirm({
+    title: '🗑 Delete habit?',
+    message: `Delete <strong>${esc(h.emoji || '⭐')} ${esc(h.name)}</strong> from ${esc(userLabel(u))}'s list, with all its history? This cannot be undone.`,
+    okText: 'Delete habit'
+  });
+  if (!ok) return;
+  try { await deleteHabitData(uid, h.id); toast('Habit deleted'); }
+  catch (err) { toast('Delete failed: ' + friendlyError(err)); }
+});
+
+async function deleteAllStaffHabits() {
+  const uid = S.manageUid, u = S.users[uid]; if (!u) return;
+  const n = (S.habits[uid] || []).length;
+  const ok = await askConfirm({
+    title: '🗑 Delete all habits?',
+    message: `This deletes all <strong>${n}</strong> habit${n !== 1 ? 's' : ''} of <strong>${esc(userLabel(u))}</strong> and all their history. Their login stays active. This cannot be undone.`,
+    okText: 'Delete all', typeWord: true
+  });
+  if (!ok) return;
+  toast('Deleting…', 8000);
+  try { await deleteAllUserData(uid); toast(`All habits of ${userLabel(u)} deleted`); }
+  catch (e) { toast('Delete failed: ' + friendlyError(e), 4000); }
+}
+
+async function removeStaffUser() {
+  const uid = S.manageUid, u = S.users[uid]; if (!u) return;
+  const name = userLabel(u);
+  const ok = await askConfirm({
+    title: `⛔ Remove ${name}?`,
+    message: `This deletes <strong>all of ${esc(name)}'s habits and history</strong>, removes them from the Staff Panel and blocks their login. This cannot be undone.`,
+    okText: 'Remove user', typeWord: true
+  });
+  if (!ok) return;
+  closeModal('m-manage');
+  toast(`Removing ${name}…`, 10000);
+  try {
+    // 1. Block at once (they are signed out live if they have the app open)
+    await db.doc(`users/${uid}`).set({ removed: true, removedAt: new Date().toISOString() }, { merge: true });
+    // 2. Delete their data
+    await deleteAllUserData(uid);
+    // 3. Delete the login itself when the app knows the password
+    let loginDeleted = false;
+    const pw = await loadSecret(uid);
+    if (pw && u.email) {
+      try { await withStaffLogin(u.email, pw, user => user.delete()); loginDeleted = true; }
+      catch (e) { console.warn('login delete', e); }
     }
-    toast('Habit deleted');
-  } catch (e) { toast('Delete failed: ' + friendlyError(e)); }
+    await db.doc(`users/${uid}`).set({ loginDeleted }, { merge: true });
+    await db.doc(`secrets/${uid}`).delete().catch(() => {});
+    toast(loginDeleted
+      ? `${name} removed completely ✓`
+      : `${name} removed ✓ Their login is blocked. To reuse the email, delete it in Firebase Console → Authentication.`, 6500);
+  } catch (e) { toast('Remove failed: ' + friendlyError(e), 5000); }
+}
+
+async function sendStaffReset() {
+  const u = S.users[S.manageUid]; if (!u || !u.email) return;
+  try {
+    await auth.sendPasswordResetEmail(u.email);
+    toast(`Reset link sent to ${u.email}`, 3500);
+  } catch (e) { toast(friendlyError(e), 4000); }
+}
+
+function openChangePass() {
+  const u = S.users[S.manageUid]; if (!u) return;
+  $('pass-for').textContent = userLabel(u);
+  $('pass-new').value = ''; $('pass-cur').value = '';
+  $('pass-cur-wrap').hidden = true;
+  setPassMsg('');
+  openModal('m-pass');
+  setTimeout(() => $('pass-new').focus(), 200);
+  // Existing staff created before this feature have no saved password → ask for it once
+  const uid = S.manageUid;
+  loadSecret(uid).then(pw => {
+    if (S.manageUid !== uid || pw) return;
+    $('pass-cur-wrap').hidden = false;
+    setPassMsg(`First time only: enter ${userLabel(u)}'s current password. After this the app remembers it.`, 'info');
+  });
+}
+function setPassMsg(t, type = 'error') { const m = $('pass-msg'); m.textContent = t; m.className = 'msg' + (t ? ' msg-' + type : ''); }
+async function saveStaffPass() {
+  const uid = S.manageUid, u = S.users[uid]; if (!u) return;
+  const np = $('pass-new').value;
+  const typedCur = $('pass-cur-wrap').hidden ? '' : $('pass-cur').value;
+  if (np.length < 6) return setPassMsg('New password must be at least 6 characters.');
+  const btn = $('pass-btn'); setBusy(btn, true, 'Changing…'); setPassMsg('');
+  try {
+    const cur = typedCur || await loadSecret(uid);
+    if (!cur) {
+      $('pass-cur-wrap').hidden = false;
+      setPassMsg(`Enter ${userLabel(u)}'s current password (needed once).`, 'info');
+      return;
+    }
+    await withStaffLogin(u.email, cur, user => user.updatePassword(np));
+    await saveSecret(uid, u.email, np);
+    closeModal('m-pass');
+    toast(`Password changed for ${userLabel(u)} ✓ Tell them the new password.`, 4500);
+  } catch (e) {
+    if (isBadLogin(e)) {
+      $('pass-cur-wrap').hidden = false;
+      setPassMsg(typedCur
+        ? 'That current password is wrong. If nobody knows it, use "Send reset link" instead.'
+        : 'The saved password no longer works (they may have reset it themselves). Enter their current password, or use "Send reset link".');
+    } else setPassMsg(friendlyError(e));
+  } finally { setBusy(btn, false); }
+}
+
+/* Generic confirm dialog → Promise<boolean> */
+let confirmResolve = null;
+function askConfirm({ title, message, okText = 'Confirm', typeWord = false }) {
+  if (confirmResolve) { confirmResolve(false); confirmResolve = null; }
+  $('confirm-title').textContent = title;
+  $('confirm-msg').innerHTML = message;
+  $('confirm-ok').textContent = okText;
+  $('confirm-type-wrap').hidden = !typeWord;
+  $('confirm-type').value = '';
+  $('confirm-ok').disabled = typeWord;
+  openModal('m-confirm');
+  if (typeWord) setTimeout(() => $('confirm-type').focus(), 200);
+  return new Promise(r => { confirmResolve = r; });
+}
+$('confirm-type').addEventListener('input', () => {
+  $('confirm-ok').disabled = $('confirm-type').value.trim().toUpperCase() !== 'DELETE';
+});
+function confirmOk() {
+  if ($('confirm-ok').disabled) return;
+  const r = confirmResolve; confirmResolve = null;
+  closeModal('m-confirm');
+  if (r) r(true);
 }
 
 /* Emoji picker */
@@ -1481,6 +1797,8 @@ function openModal(id) { $(id).classList.add('open'); document.body.classList.ad
 function closeModal(id) {
   $(id).classList.remove('open');
   if (!document.querySelector('.overlay.open')) document.body.classList.remove('modal-open');
+  if (id === 'm-confirm' && confirmResolve) { const r = confirmResolve; confirmResolve = null; r(false); }
+  if (id === 'm-manage') S.manageUid = null;
 }
 document.querySelectorAll('.overlay').forEach(o =>
   o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); }));
@@ -1489,6 +1807,9 @@ document.addEventListener('keydown', e => {
 });
 $('habit-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveHabit(); } });
 $('u-pass').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveUser(); } });
+$('pass-new').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveStaffPass(); } });
+$('pass-cur').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveStaffPass(); } });
+$('confirm-type').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); confirmOk(); } });
 
 /* ================================================================
    SERVICE WORKER (offline shell + installable app)

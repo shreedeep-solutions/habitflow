@@ -5,16 +5,27 @@ service cloud.firestore {
     function signedIn()   { return request.auth != null; }
     function isAdmin()    { return signedIn() && request.auth.token.email == 'deepvernekar1097@gmail.com'; }
     function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function activeOwner(uid) {
+      return isOwner(uid) &&
+        (!exists(/databases/$(database)/documents/users/$(uid)) ||
+         get(/databases/$(database)/documents/users/$(uid)).data.get('removed', false) != true);
+    }
 
-    // Staff profile docs: the person themselves or the admin
     match /users/{uid} {
-      allow read, write: if isOwner(uid) || isAdmin();
+      allow read:   if isOwner(uid) || isAdmin();
+      allow create: if isAdmin() || (isOwner(uid) && request.resource.data.get('removed', false) == false);
+      allow update: if isAdmin() || (activeOwner(uid) && request.resource.data.get('removed', false) == false);
+      allow delete: if isAdmin();
 
-      // Habits and ticks: only the owner can change them; admin can view them
       match /{sub}/{docId} {
-        allow read:  if isOwner(uid) || isAdmin();
-        allow write: if isOwner(uid);
+        allow read:           if activeOwner(uid) || isAdmin();
+        allow create, update: if activeOwner(uid);
+        allow delete:         if activeOwner(uid) || isAdmin();
       }
+    }
+
+    match /secrets/{uid} {
+      allow read, write: if isAdmin();
     }
   }
 }
