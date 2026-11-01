@@ -1,53 +1,73 @@
-# HabitFlow – Setup & Update Guide
+# HabitFlow v3 – Setup & User Guide (Shreedeep Solutions)
 
 Live at: https://shreedeep-solutions.github.io/habitflow/
+(after the custom domain step below: https://habits.shreedeepsolutions.com/)
 
-## Files (upload ALL of these to the `habitflow` GitHub repo)
+## Files in the GitHub repo `shreedeep-solutions/habitflow`
 
 | File | What it is |
 |---|---|
 | `index.html` | The whole app |
-| `sw.js` | Offline support + auto-update |
-| `manifest.json` | Makes it installable on phones |
-| `icon-192.png`, `icon-512.png` | App icons (home screen) |
-| `firestore.rules` | Security rules — paste into Firebase (NOT uploaded to GitHub, though it does no harm) |
+| `sw.js`, `manifest.json` | Offline support, auto-update, installable app |
+| `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` | Home-screen icons (Shreedeep logo) |
+| `logo-mark.png`, `logo-mark-white.png` | Logo used inside the app and on PDF reports |
+| `firestore.rules` | Security rules — paste into Firebase (see below) |
+| `monthly-email.gs`, `appsscript.json` | Optional: automatic monthly Excel email (see below) |
 
-## Updating the app on GitHub
+Updates reach everyone automatically the next time they open the app.
 
-1. Open the repo → **Add file → Upload files**.
-2. Drag in the files above → **Commit changes**.
-3. Wait 1–2 minutes. Everyone gets the new version automatically the next time they open the app
-   (no more clearing cache).
+## 1. Firestore security rules (required after every rules change)
 
-## Firestore security rules (do this once)
+Firebase Console → project **habits-70105** → **Firestore Database** (not Realtime Database) → **Rules** →
+select all, delete, paste the whole of `firestore.rules`, **Publish**.
 
-1. Firebase Console → project **habits-70105** → **Firestore Database** (not Realtime Database) → **Rules** tab.
-2. Select everything in the editor and delete it.
-3. Open `firestore.rules`, copy everything, paste, click **Publish**.
+What they enforce:
+- Staff see/change only their own data; ticks only for today + the 3 previous days.
+- Admin-assigned habits (📌) cannot be edited, archived or deleted by staff.
+- Paused or removed staff are locked out. Comments and office settings are admin-only; the activity log can't be edited.
+- The admin can view everyone, assign/archive/delete staff habits, manage profiles, and read saved staff passwords.
 
-What the rules do:
-- Staff can see and change **only their own** habits.
-- The admin (deepvernekar1097@gmail.com) can **view** everyone's habits, delete staff habits,
-  create/remove staff, and read the saved staff passwords (no one else can).
-- Removed staff are locked out.
-- Nobody can read anything without logging in.
+## 2. Custom domain habits.shreedeepsolutions.com (one-time)
 
-If the admin email ever changes, change it in **both** `index.html` (ADMIN_EMAIL) and `firestore.rules`.
+1. Namecheap → Domain List → shreedeepsolutions.com → **Advanced DNS**.
+2. If a record for `habits` already exists (e.g. from Netlify), delete it.
+3. Add **CNAME Record** — Host: `habits` · Value: `shreedeep-solutions.github.io.` · TTL: Automatic. Save.
+4. Wait 10–30 minutes, then tell Claude "DNS is done" — Claude adds the domain to the repo
+   (or: GitHub repo → Settings → Pages → Custom domain → `habits.shreedeepsolutions.com` → Save → tick **Enforce HTTPS** once offered).
+5. The old github.io link redirects automatically. Staff will need to sign in once on the new address and re-install the app icon.
+
+## 3. Monthly email report (optional, free)
+
+Emails last month's Excel to you on the 1st at ~8 AM. Do this from the Google account that **owns the Firebase project**.
+
+1. Go to https://script.google.com → **New project**. Name it "HabitFlow monthly email".
+2. Delete the sample code, paste all of `monthly-email.gs`. (Change `SEND_TO` at the top if needed.)
+3. ⚙ **Project Settings** → tick **Show "appsscript.json" manifest file** → back in Editor open `appsscript.json`, replace its contents with ours. Save.
+4. In the toolbar choose the function **setup** → **Run** → allow the permissions it asks for
+   (Google shows "unverified app" because it's your own script: Advanced → Go to project).
+5. You receive a test email within a minute. From now on it runs by itself every month.
+
+If you'd rather not set this up: on the 1st–5th of each month the admin's Today screen shows a "report is ready — Download" button.
 
 ## Daily use
 
-- **Admin** logs in on the *Admin Login* tab: My Habits / Calendar / Staff Panel.
-- **Add staff**: Staff Panel → **+ Add User** → share the email & password with them.
-- **Manage a staff member** (admin): Staff Panel → **⚙ Manage** next to their name. From there you can
-  delete single habits, delete all their habits, change their password, send a reset link, or remove them.
-- **Change a staff password** (admin): Manage → *Change password*. For staff created before this feature,
-  the app asks for their current password once; after that it remembers it.
-- **Forgot password** (staff): on the login screen, type the email → tap *Forgot password?* → reset link arrives by email.
-- **Remove a staff member**: Manage → *Remove user* (type DELETE to confirm). Their habits and history are deleted
-  and they are signed out at once. If the app knew their password, their login is deleted too; otherwise it is
-  blocked, and you can delete it in Firebase Console → Authentication → Users if you want to reuse the email.
-- **Edit / delete your own habit**: on a phone, tap the habit's name; on a computer, hover over it.
-- Closing the browser/app signs you out automatically.
+**Staff**
+- Tap a circle to tick. **Hold** it (right-click on a computer) for notes, *skip* (doesn't count as missed), counts and timers.
+- **Swipe** a habit right = done today, left = not done. Every change has an **Undo**.
+- Tap a **date** at the top to mark that day as leave. Days older than 4 days are locked.
+- Habit types: Yes/No, Count (e.g. 20 calls) and Timer (e.g. 30 min, with a built-in stopwatch).
+- ↕ Reorder, 🗄 Archive (hides a habit but keeps its history), colours and icons in the habit editor.
+- **Me** tab: streaks, best streaks, badges, month score, archived habits, leaderboard (if the admin turns it on).
+- ⚙ Settings: dark mode, bigger text, stay signed in (works offline), install app.
+
+**Admin**
+- **Staff** tab: live sheet, "Not done yet today" with one-tap WhatsApp reminders, tap any cell for notes / late ticks / your comment.
+- **⚙ Manage** a person: edit profile (photo, name, email, designation, employee ID, WhatsApp number, joining date), view the app as them,
+  assign habits, activity log, change password, reset link, pause, delete habits, remove (restore or delete forever later from "Removed staff").
+- **📌 Assign habit** to one person or the whole team.
+- **Insights** tab: team tiles, trend charts, weekday analysis, best & weakest habits, leaderboard, compare two staff,
+  star performer, monthly report cards / year-end summary (PDF), Excel/PDF export (everyone, filtered staff or only your habits).
+- ⚙ Settings → Office settings: weekly off (Tuesday by default), office holidays, show leaderboard to staff.
 
 ## Free-tier limits (Firebase Spark)
 50,000 reads / 20,000 writes per day — plenty for a team of 20–30.

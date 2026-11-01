@@ -5,8 +5,8 @@
  * - Firebase API traffic (login, Firestore) is never touched.
  * Paths are relative, so this works on /habitflow/ or on a custom domain without edits.
  */
-const CACHE = 'habitflow-v3';
-const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const CACHE = 'habitflow-v4';
+const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './logo-mark.png', './logo-mark-white.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(

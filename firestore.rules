@@ -5,27 +5,53 @@ service cloud.firestore {
     function signedIn()   { return request.auth != null; }
     function isAdmin()    { return signedIn() && request.auth.token.email == 'deepvernekar1097@gmail.com'; }
     function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function profileOf(uid) { return get(/databases/$(database)/documents/users/$(uid)).data; }
     function activeOwner(uid) {
       return isOwner(uid) &&
         (!exists(/databases/$(database)/documents/users/$(uid)) ||
-         get(/databases/$(database)/documents/users/$(uid)).data.get('removed', false) != true);
+         (profileOf(uid).get('removed', false) != true && profileOf(uid).get('paused', false) != true));
     }
+    // Ticks only for recent days (the app allows today + 3 previous; 5-day margin covers time zones)
+    function recentDate(d) {
+      return d is string && d.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+        timestamp.date(int(d.split('-')[0]), int(d.split('-')[1]), int(d.split('-')[2])) > request.time - duration.value(5, 'd') &&
+        timestamp.date(int(d.split('-')[0]), int(d.split('-')[1]), int(d.split('-')[2])) < request.time + duration.value(2, 'd');
+    }
+
+    match /config/{doc}  { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /public/{doc}  { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /secrets/{uid} { allow read, write: if isAdmin(); }
 
     match /users/{uid} {
       allow read:   if isOwner(uid) || isAdmin();
-      allow create: if isAdmin() || (isOwner(uid) && request.resource.data.get('removed', false) == false);
-      allow update: if isAdmin() || (activeOwner(uid) && request.resource.data.get('removed', false) == false);
+      allow create: if isAdmin() || (isOwner(uid) && request.resource.data.keys().hasOnly(['email', 'uid', 'name']));
+      allow update: if isAdmin() || (activeOwner(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email', 'uid', 'name', 'pendingEmail']));
       allow delete: if isAdmin();
 
-      match /{sub}/{docId} {
+      match /habits/{hid} {
+        allow read:   if activeOwner(uid) || isAdmin();
+        allow create: if isAdmin() || (activeOwner(uid) && request.resource.data.get('assigned', false) == false);
+        allow update: if isAdmin() || (activeOwner(uid) && (
+                        resource.data.get('assigned', false) == true
+                          ? request.resource.data.diff(resource.data).affectedKeys().hasOnly(['order', 'bestStreak', 'bestStreakAt'])
+                          : request.resource.data.get('assigned', false) == false));
+        allow delete: if isAdmin() || (activeOwner(uid) && resource.data.get('assigned', false) == false);
+      }
+      match /completions/{cid} {
         allow read:           if activeOwner(uid) || isAdmin();
-        allow create, update: if activeOwner(uid);
+        allow create, update: if activeOwner(uid) && recentDate(request.resource.data.date);
         allow delete:         if activeOwner(uid) || isAdmin();
       }
-    }
-
-    match /secrets/{uid} {
-      allow read, write: if isAdmin();
+      match /log/{lid} {
+        allow read:   if activeOwner(uid) || isAdmin();
+        allow create: if activeOwner(uid) || isAdmin();
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
+      match /comments/{day} {
+        allow read:  if activeOwner(uid) || isAdmin();
+        allow write: if isAdmin();
+      }
     }
   }
 }
