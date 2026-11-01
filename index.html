@@ -6,6 +6,7 @@
   <title>HabitFlow – Shreedeep Solutions</title>
   <meta name="description" content="Daily habits tracker for the Shreedeep Solutions team" />
   <meta name="theme-color" content="#4A1521" />
+  <meta name="color-scheme" content="light dark" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" href="icon-192.png" />
   <link rel="apple-touch-icon" href="icon-192.png" />
@@ -128,7 +129,8 @@
     .topbar-user { font-size:.8rem; color:var(--header-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:110px; }
     .role-badge { font-size:.62rem; font-weight:700; background:var(--gold); color:#2A1A1E; padding:2px 7px; border-radius:20px; letter-spacing:.04em; flex-shrink:0; }
     .net-pill { font-size:.66rem; font-weight:700; background:#B45309; color:#fff; padding:2px 7px; border-radius:20px; flex-shrink:0; }
-    .icon-btn { background:rgba(255,255,255,.12); border:none; color:var(--header-ink); height:32px; min-width:32px; padding:0 9px; border-radius:8px; cursor:pointer; font-size:.95rem; flex-shrink:0; }
+    .icon-btn { background:rgba(255,255,255,.12); border:none; color:var(--header-ink); height:34px; min-width:34px; padding:0 8px; border-radius:8px; cursor:pointer; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; }
+    .icon-btn svg { width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
     .icon-btn:hover { background:rgba(255,255,255,.22); }
     .view-tabs { background:var(--card); display:flex; border-bottom:1px solid var(--border); box-shadow:0 1px 4px rgba(0,0,0,.04); overflow-x:auto; scrollbar-width:none; }
     .view-tabs::-webkit-scrollbar { display:none; }
@@ -190,27 +192,28 @@
     .habits-list { }
     .habit-row { background:var(--card); border-bottom:1px solid var(--border-2); transition:background .1s, transform .15s; position:relative; touch-action:pan-y; }
     .habit-row:hover { background:var(--card-2); }
-    .habit-info { display:flex; align-items:center; gap:10px; min-width:0; cursor:pointer; }
+    .habit-info { display:flex; align-items:center; gap:10px; min-width:0; cursor:pointer; position:relative; }
     .habit-emoji { width:34px; height:34px; flex-shrink:0; border-radius:50%; background:var(--bg-alt); border:2px solid var(--hc, var(--primary)); display:flex; align-items:center; justify-content:center; font-size:.95rem; }
-    .habit-text { min-width:0; display:flex; flex-direction:column; }
-    .habit-name { font-weight:600; font-size:.95rem; color:var(--text); line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .habit-text { min-width:0; flex:1 1 auto; display:flex; flex-direction:column; }
+    /* Name wraps to 2 lines instead of being cut to a few letters */
+    .habit-name { font-weight:600; font-size:.95rem; color:var(--text); line-height:1.25; overflow:hidden; word-break:break-word;
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
     .habit-meta { display:flex; gap:6px; align-items:center; font-size:.7rem; color:var(--muted); margin-top:2px; white-space:nowrap; overflow:hidden; }
     .streak { color:var(--gold-d); font-weight:700; }
-    .habit-actions { display:flex; gap:2px; flex-shrink:0; margin-left:auto; }
+    /* Edit/archive/delete float over the name only when shown — they never take space from it */
+    .habit-actions { display:none; gap:2px; position:absolute; right:0; top:50%; transform:translateY(-50%); z-index:2;
+      background:var(--card-2); border:1px solid var(--border); border-radius:10px; padding:2px; box-shadow:var(--shadow); }
+    .habit-row.reveal .habit-actions { display:flex; }
+    .habit-row.reveal { background:var(--card-2); }
     .hab-btn { width:30px; height:30px; border-radius:8px; border:none; cursor:pointer; background:transparent; display:flex; align-items:center; justify-content:center; font-size:.88rem; color:var(--muted); }
     .hab-btn:hover { background:var(--bg-alt); color:var(--primary); }
     .hab-btn.del:hover { background:var(--miss-bg); color:var(--miss-ink); }
-    @media (hover:hover) {
-      .habit-actions { opacity:0; transition:opacity .15s; }
-      .habit-row:hover .habit-actions, .habit-row:focus-within .habit-actions, .habit-row.reveal .habit-actions { opacity:1; }
+    @media (hover:hover) and (pointer:fine) {
+      .habit-row:hover .habit-actions, .habit-row:focus-within .habit-actions { display:flex; }
       .touch-only { display:none; }
     }
-    @media (hover:none) {
-      .habit-actions { display:none; }
-      .habit-row.reveal .habit-actions { display:flex; }
-      .habit-row.reveal { background:var(--card-2); }
-      .mouse-only { display:none; }
-    }
+    @media not all and (hover:hover) and (pointer:fine) { .mouse-only { display:none; } }
+    .mg-habits .hab-btn, .removed-list .hab-btn { position:static; }
     .check-cell { display:flex; align-items:center; justify-content:center; }
     .cbtn { width:calc(var(--cell) - 8px); height:calc(var(--cell) - 8px); max-width:42px; max-height:42px; border-radius:50%; border:2px solid var(--border); background:var(--card);
       cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:.9rem; font-weight:700; color:var(--faint); transition:transform .12s, background .15s; position:relative; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
@@ -554,8 +557,8 @@
         <span class="net-pill" id="net-pill" hidden>Offline</span>
         <span class="role-badge" id="role-badge" hidden>ADMIN</span>
         <span class="topbar-user" id="topbar-name"></span>
-        <button class="icon-btn" onclick="openSettings()" title="Settings" aria-label="Settings">⚙</button>
-        <button class="icon-btn" onclick="doLogout()" title="Sign out" aria-label="Sign out">⏻</button>
+        <button class="icon-btn" onclick="openSettings()" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+        <button class="icon-btn" onclick="doLogout()" title="Sign out" aria-label="Sign out"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button>
       </div>
     </div>
     <nav class="view-tabs" role="tablist">
